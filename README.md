@@ -18,6 +18,10 @@ No specific package install required. All library used in this code is python st
 
 ## Usage
 
+You can use the `DailyTask_v3.json` directly (by importing it into your marco manager.)
+
+OR:
+
 1. Clone this repo (make sure you have `git` in your terminal)
 
 ```bash
@@ -35,3 +39,7 @@ python jsonGenerator.py
    -> open marco manager -> import -> select this json file
 
 ## Parameters
+
+Right now the script is set to run every 4 hours (the whole script shall take about 4-5 mins).  
+Each time, it will open the game, do all the collects, and close the game.  
+TODO: more about the detailed parameters and how to change it.
