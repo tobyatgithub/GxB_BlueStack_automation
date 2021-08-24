@@ -6,6 +6,11 @@ Using python to generate json marco script for Blue Stack to execute for game Gx
 
 Create a stable method to create and maintain auto marco of BlueStack5 for GxB game. (This method can be shared by any other apps running on BlueStack simulator.)
 
+## Update Logs
+
+-v1.0 can performing basic functions as campaign collect, excursion collect, dorm collect, etc.
+-v1.1 taking refactor suggestion from kekw#0204
+
 ## Challenges
 
 - (maintainance need) The game UI gets updated frequently
