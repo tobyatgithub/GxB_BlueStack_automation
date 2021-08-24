@@ -6,25 +6,41 @@ date: Aug. 21 2021
 Here is a systematic way to generate BlueStack marco for GxB2.
 
 TODO:
-- auto excursion explore
-- pet training
+- auto excursion explore [DONE]
+- pet training [DONE]
 - pet fighting
 """
 
 import json
 from datetime import datetime
 
+RESOLUTION_X = 900
+RESOLUTION_Y = 1600
 FOUR_HOURS = 14400  # in second
+SECOND = 1000
+MINUTE = SECOND * 60
+
+# Locations
+CLEARALL = (83, 5)
+GAME_ENTRANCE = (444, 366)
+HOMEPAGE_TAB = (54, 1558)
+CAPSULE_TAB = (522, 1522)
+GUILD_TAB = (666, 1525)
+ALCHEMY_BUTTON = (420, 48.5)
+CAMPAIGN_BUTTON = (444, 1285)
+EXCURSION_BUTTON = (840, 673)
+QUIZ_BUTTON = (844, 430)
+RETURN_AND_MAILBOX_BUTTON = (838, 55)
+FRIENDS_BUTTON = (828, 170)
+SERVANT_BUTTON = (841, 545)
 
 
 class Solution:
-    def __init__(self, DEBUG=False):
+    def __init__(self, START_TIME=1000, DEBUG=False):
         self.data = {}
-        self.START_TIME = 1000
-        self.resolutionX = 900
-        self.resolutionY = 1600
-        self.DEFAULT_WAIT = 2000  # ms
-        self.LONGER_WAIT = 4000  # ms
+        self.moving_timestamp = START_TIME
+        self.DEFAULT_WAIT = 2 * SECOND  # ms
+        self.LONGER_WAIT = 4 * SECOND  # ms
         self.DEBUG = DEBUG
 
     # the basic blocks
@@ -48,7 +64,10 @@ class Solution:
         self.data["Events"] = []
 
     def createFooter(
-        self, LoopInterval=FOUR_HOURS, LoopType="UntilStopped", RestartPlayerAfterMinutes=60
+        self,
+        LoopInterval=FOUR_HOURS,
+        LoopType="UntilStopped",
+        RestartPlayerAfterMinutes=60,
     ):
         """
         Create footer for the json file.
@@ -61,18 +80,19 @@ class Solution:
         self.data["RestartPlayer"] = False
         self.data["RestartPlayerAfterMinutes"] = RestartPlayerAfterMinutes
 
-    def addEvent(self, start_timestamp, X, Y, span=100):
+    # def addEvent(self, start_timestamp, X, Y, span=100):
+    def addEvent(self, start_timestamp, coordinateXY, span=100):
         """
         General type for adding an event, which will be
         one mouse down and one mouse up by default.
         start_timestamp: the starting time stamp for this event, in int
-        X: x location for the mouse click, float
-        Y: y location for the mouse click, float
+        coordinateXY: a tuple (int, int) for (X, Y) location
         span: time between mouse down and mouse up in ms
         """
+        X, Y = coordinateXY
         if X > 100 or Y > 100:
-            local_X = 100 * X / self.resolutionX  # change to 0-100 %
-            local_Y = 100 * Y / self.resolutionY
+            local_X = 100 * X / RESOLUTION_X  # change to 0-100 %
+            local_Y = 100 * Y / RESOLUTION_Y
         else:
             local_X = X
             local_Y = Y
@@ -94,304 +114,288 @@ class Solution:
         self.data["Events"].append(mouseDown)
         self.data["Events"].append(mouseUp)
 
+    def returnHomepage(self):
+        for _ in range(2):
+            self.addEvent(self.moving_timestamp, HOMEPAGE_TAB)
+            self.moving_timestamp += 2 * SECOND
+
     # the specific function blocks
     def openGame(self, timestamp=1400):
-        moving_timestamp = timestamp
-        self.addEvent(timestamp, 444, 366)
+        self.moving_timestamp += timestamp
+        self.addEvent(self.moving_timestamp, GAME_ENTRANCE)
+        # wait for 30 seconds in case of update
+        self.moving_timestamp += 30 * SECOND
 
-        moving_timestamp += self.LONGER_WAIT * 10
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
-
-    def closeAll(self, timestamp):
-        moving_timestamp = timestamp
-        task = {
-            "EventType": "UiRecentApps",
-            "Timestamp": moving_timestamp
-        }
+    def closeAll(self):
+        task = {"EventType": "UiRecentApps", "Timestamp": self.moving_timestamp}
         self.data["Events"].append(task)
-        moving_timestamp += self.LONGER_WAIT
+        self.moving_timestamp += 5 * SECOND
+        self.addEvent(self.moving_timestamp, CLEARALL)
 
-        self.addEvent(moving_timestamp, 83, 5)
-
-    def getCampaignRewards(self, timestamp):
+    def getCampaignRewards(self):
         """
         Get campaign rewards.
         A closed loop from home to home.
         """
-
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+        self.returnHomepage()
 
         # enter campaign
-        self.addEvent(moving_timestamp, 444, 1285)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, CAMPAIGN_BUTTON)
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit collect 5 times
         for _ in range(5):
-            self.addEvent(moving_timestamp, 822, 880)
-            moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (822, 880))
+            self.moving_timestamp += self.DEFAULT_WAIT
 
         # open the item box
-        self.addEvent(moving_timestamp, 814, 1365)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (814, 1365))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit claim
-        self.addEvent(moving_timestamp, 457, 1091)
-        moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (457, 1091))
+        self.moving_timestamp += self.DEFAULT_WAIT
 
         # go back to the front page
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+        self.returnHomepage()
 
-        return moving_timestamp
-
-    def getDormRewards(self, timestamp):
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def getDormRewards(self):
+        self.returnHomepage()
 
         # go to campus
-        self.addEvent(moving_timestamp, 113, 1297)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (113, 1297))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # go life tab
-        self.addEvent(moving_timestamp, 660, 149)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (660, 149))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # select Dorm
-        self.addEvent(moving_timestamp, 668, 437)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (668, 437))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # clicl claim
-        self.addEvent(moving_timestamp, 142, 226)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (142, 226))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit collect
-        self.addEvent(moving_timestamp, 471, 973)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (471, 973))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit return
-        self.addEvent(moving_timestamp, 838, 55)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (838, 55))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # go back to home page
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+        self.returnHomepage()
 
-    def getExcursionRewards(self, timestamp):
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def getExcursionRewards(self):
+        self.returnHomepage()
 
         # go to excursion
-        self.addEvent(moving_timestamp, 840, 673)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, EXCURSION_BUTTON)
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit claim all
         for _ in range(2):
-            self.addEvent(moving_timestamp, 144, 1450)
+            self.addEvent(self.moving_timestamp, (144, 1450))
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        # hit auto explore
+        self.addEvent(self.moving_timestamp, (702, 1336))
+        self.moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (450, 1238))
+        self.moving_timestamp += 10 * SECOND
 
         # hit return *
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 838, 55)
-            moving_timestamp += self.DEFAULT_WAIT
+        for _ in range(4):
+            self.addEvent(self.moving_timestamp, (838, 55))
+            self.moving_timestamp += self.DEFAULT_WAIT
 
         # re-init
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+        self.returnHomepage()
 
-    def getFreeRegularCapus(self, timestamp):
-        moving_timestamp = timestamp
-        # init
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def getFreeRegularCapus(self):
+        self.returnHomepage()
 
-        # go to capus
-        self.addEvent(moving_timestamp, 522, 1522)
-        moving_timestamp += self.DEFAULT_WAIT
+        # go to capsule
+        self.addEvent(self.moving_timestamp, CAPSULE_TAB)
+        self.moving_timestamp += self.DEFAULT_WAIT
 
         # hit regular pull
-        self.addEvent(moving_timestamp, 536, 398)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (536, 398))
+        self.moving_timestamp += self.LONGER_WAIT
 
         # hit OK
-        self.addEvent(moving_timestamp, 181, 1025)
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (181, 1025))
+        self.moving_timestamp += self.LONGER_WAIT
 
-        # return to homepage
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+        self.returnHomepage()
 
-    def doOneJuniorLeagueBattle(self, timestamp):
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def doOneJuniorLeagueBattle(self):
+        self.returnHomepage()
 
         # go to League
-        self.addEvent(moving_timestamp, 800, 1300)
-        moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (800, 1300))
+        self.moving_timestamp += self.DEFAULT_WAIT
 
         # go to League tab
         for _ in range(2):
-            self.addEvent(moving_timestamp, 666, 152)
-            moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (666, 152))
+            self.moving_timestamp += self.DEFAULT_WAIT
 
         # go to Junior section
-        self.addEvent(moving_timestamp, 455, 350)
-        moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (455, 350))
+        self.moving_timestamp += self.DEFAULT_WAIT
 
-        self.addEvent(moving_timestamp, 463, 1326)  # hit fight
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 747, 952)  # pick the 3rd opponent
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 455, 924)  # confirm fight
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (463, 1326))  # hit fight
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (747, 952))  # pick the 3rd opponent
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (455, 924))  # confirm fight
+        self.moving_timestamp += self.LONGER_WAIT
         for _ in range(2):
-            self.addEvent(moving_timestamp, 817, 719)  # select reward
-            moving_timestamp += self.LONGER_WAIT
+            self.addEvent(self.moving_timestamp, (817, 719))  # select reward
+            self.moving_timestamp += self.LONGER_WAIT
         for _ in range(2):
-            self.addEvent(moving_timestamp, 444, 1109)  # return *
-            moving_timestamp += self.DEFAULT_WAIT
-        for _ in range(2):  # back to homepage
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+            self.addEvent(self.moving_timestamp, (444, 1109))  # return *
+            self.moving_timestamp += self.DEFAULT_WAIT
+        self.returnHomepage()
 
-    def getQuizRewards(self, timestamp):
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def getQuizRewards(self):
+        self.returnHomepage()
 
-        self.addEvent(moving_timestamp, 844, 430)  # open quiz
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 457, 1365)  # claim all
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 457, 1189)  # OK *
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 457, 1159)  # OK *
-        moving_timestamp += self.LONGER_WAIT
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+        self.addEvent(self.moving_timestamp, QUIZ_BUTTON)  # open quiz
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (457, 1365))  # claim all
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (457, 1189))  # OK *
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (457, 1159))  # OK *
+        self.moving_timestamp += self.LONGER_WAIT
+        self.returnHomepage()
 
-    def getAlchemyRewards(self, timestamp):
-        # init
-        moving_timestamp = timestamp
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+    def getAlchemyRewards(self):
+        self.returnHomepage()
 
-        self.addEvent(moving_timestamp, 420, 48.5)  # hit alchemy +
-        moving_timestamp += self.LONGER_WAIT
-        self.addEvent(moving_timestamp, 275, 953)  # hit free
-        moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, ALCHEMY_BUTTON)  # hit alchemy +
+        self.moving_timestamp += self.LONGER_WAIT
+        self.addEvent(self.moving_timestamp, (275, 953))  # hit free
+        self.moving_timestamp += self.LONGER_WAIT
+        self.returnHomepage()
 
-        # go back to home page
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+    def getAllMailRewards(self):
+        self.returnHomepage()
 
-    def getAllMailRewards(self, timestamp):
-        # init
-        moving_timestamp = timestamp
+        self.addEvent(self.moving_timestamp, RETURN_AND_MAILBOX_BUTTON)  # hit mail box
+        self.moving_timestamp += self.LONGER_WAIT
         for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (442, 1266))  # claim all
+            self.moving_timestamp += self.LONGER_WAIT
+        self.returnHomepage()
 
-        self.addEvent(moving_timestamp, 838, 55)  # hit mail box
-        moving_timestamp += self.LONGER_WAIT
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 442, 1266)  # claim all
-            moving_timestamp += self.LONGER_WAIT
-        for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+    def takeServantClass(self):
+        self.returnHomepage()
 
-    def getFriendsRewards(self, timestamp, doCoop=True):
-        # init
-        moving_timestamp = timestamp
+        self.addEvent(self.moving_timestamp, SERVANT_BUTTON)
+        self.moving_timestamp += self.LONGER_WAIT
         for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (450, 887))
+            self.moving_timestamp += self.LONGER_WAIT
+        for _ in range(3):
+            self.addEvent(self.moving_timestamp, (810, 223))
+            self.moving_timestamp += self.DEFAULT_WAIT
+        for _ in range(3):
+            self.addEvent(self.moving_timestamp, (512, 927))
+            self.moving_timestamp += self.LONGER_WAIT
+        self.returnHomepage()
 
-        self.addEvent(moving_timestamp, 828, 170)  # open friends
-        moving_timestamp += self.LONGER_WAIT
+    def getFriendsRewards(self, doCoop=True):
+        self.returnHomepage()
+
+        self.addEvent(self.moving_timestamp, FRIENDS_BUTTON)  # open friends
+        self.moving_timestamp += self.LONGER_WAIT
         for _ in range(2):
-            self.addEvent(moving_timestamp, 730, 544)  # cliam and send
-            moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (730, 544))  # cliam and send
+            self.moving_timestamp += self.DEFAULT_WAIT
 
         if doCoop:
-            self.addEvent(moving_timestamp, 744, 442)  # go coop
-            moving_timestamp += self.DEFAULT_WAIT
-            self.addEvent(moving_timestamp, 454, 1169)  # fight
-            moving_timestamp += self.LONGER_WAIT
-            self.addEvent(moving_timestamp, 457, 923)  # confirm fight
-            moving_timestamp += self.LONGER_WAIT
-            self.addEvent(moving_timestamp, 450, 1500)  # OK
-            moving_timestamp += self.LONGER_WAIT
+            self.addEvent(self.moving_timestamp, (744, 442))  # go coop
+            self.moving_timestamp += self.DEFAULT_WAIT
+            self.addEvent(self.moving_timestamp, (454, 1169))  # fight
+            self.moving_timestamp += self.LONGER_WAIT
+            self.addEvent(self.moving_timestamp, (457, 923))  # confirm fight
+            self.moving_timestamp += self.LONGER_WAIT
+            self.addEvent(self.moving_timestamp, (450, 1500))  # OK
+            self.moving_timestamp += self.LONGER_WAIT
+
+        self.returnHomepage()
+
+    def getGuildRewards(self):
+        self.returnHomepage()
+
+        # sign-in
+        self.addEvent(self.moving_timestamp, GUILD_TAB)
+        self.moving_timestamp += self.LONGER_WAIT
 
         for _ in range(2):
-            self.addEvent(moving_timestamp, 54, 1558)
-            moving_timestamp += self.DEFAULT_WAIT
-        return moving_timestamp
+            self.addEvent(self.moving_timestamp, (457, 380))
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        for _ in range(2):
+            self.addEvent(self.moving_timestamp, (711, 772))
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        # return to guild page and do caffee
+        for _ in range(3):
+            self.addEvent(self.moving_timestamp, GUILD_TAB)
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        for _ in range(4):
+            self.addEvent(self.moving_timestamp, (758, 443))
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        for _ in range(2):
+            self.addEvent(self.moving_timestamp, (454, 1180))
+            self.moving_timestamp += self.DEFAULT_WAIT
+
+        self.addEvent(self.moving_timestamp, (184, 856))  # task 1
+        self.moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (455, 856))  # task 2
+        self.moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (716, 856))  # task 3
+        self.moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (184, 1276))  # task 4
+        self.moving_timestamp += self.DEFAULT_WAIT
+        self.addEvent(self.moving_timestamp, (455, 1276))  # task 5
+        self.moving_timestamp += self.DEFAULT_WAIT
+
+        self.returnHomepage()
 
 
 def main():
     app = Solution()
     app.createHeader()
 
-    cur = app.START_TIME  # by default = 1000 ms
     # start the app
-    cur = app.openGame(cur)
-    cur = app.getCampaignRewards(cur)
-    cur = app.getDormRewards(cur)
-    cur = app.getExcursionRewards(cur)
-    cur = app.doOneJuniorLeagueBattle(cur)
-    cur = app.getFreeRegularCapus(cur)
-    cur = app.getQuizRewards(cur)
-    cur = app.getAlchemyRewards(cur)
-    cur = app.getAllMailRewards(cur)
-    cur = app.getFriendsRewards(cur)
-    app.closeAll(cur)
-    app.createFooter(LoopInterval=(FOUR_HOURS - cur//1000))
+    app.openGame()
+    app.getCampaignRewards()
+    app.getDormRewards()
+    app.getExcursionRewards()
+    app.doOneJuniorLeagueBattle()
+    app.getFreeRegularCapus()
+    app.getGuildRewards()
+    app.getQuizRewards()
+    app.getAlchemyRewards()
+    app.getAllMailRewards()
+    app.takeServantClass()
+    app.getFriendsRewards()
+    app.closeAll()
+    app.createFooter(
+        LoopInterval=(FOUR_HOURS - app.moving_timestamp // SECOND)
+    )  # time calculated in seconds
     app.saveJson()
 
 
 if __name__ == "__main__":
     main()
-
-# data["people"].append(
-#     {"name": "Scott", "website": "stackabuse.com", "from": "Nebraska"}
-# )
-# data["people"].append({"name": "Larry", "website": "google.com", "from": "Michigan"})
-# data["people"].append({"name": "Tim", "website": "apple.com", "from": "Alabama"})
-
-# # print(json.dumps(data, indent=4, sort_keys=True))
-
-# with open("data.json", "w") as outfile:
-#     outfile.write(json.dumps(data, indent=4, sort_keys=True))
